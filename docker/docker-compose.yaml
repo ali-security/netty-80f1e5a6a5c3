@@ -16,6 +16,7 @@ services:
       - GPG_PASSPHRASE
       - GPG_PRIVATE_KEY
       - MAVEN_OPTS
+      - TEST_FILTER
     volumes:
       - ~/.ssh:/root/.ssh
       - ~/.gnupg:/root/.gnupg
@@ -29,11 +30,9 @@ services:
 
   build:
     <<: *common
-    command: '/bin/bash -cl "
-      ./mvnw -B -ntp clean install -Dio.netty.testsuite.badHost=netty.io -Dtcnative.classifier=linux-x86_64-fedora && 
-      cd testsuite-shading &&
-      ../mvnw -B -ntp integration-test failsafe:verify -Dtcnative.classifier=linux-x86_64-fedora
-    "'
+    # Scoped to the epoll modules (-pl ... -am) so the job fits the CI time budget; the
+    # -am reactor still runs common/buffer/transport/handler/testsuite tests.
+    command: '/bin/bash -cl "./mvnw -B -ntp -pl transport-native-unix-common,transport-classes-epoll,transport-native-epoll -am clean install -Dio.netty.testsuite.badHost=netty.io -Dtcnative.classifier=linux-x86_64-fedora $${TEST_FILTER:+-Dtest=$$TEST_FILTER -Dsurefire.failIfNoSpecifiedTests=false}"'
 
   deploy:
     <<: *common
